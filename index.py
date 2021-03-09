@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, session, Response
 from time import time
 import hashlib
 import uuid
@@ -20,7 +20,16 @@ user = 'admin'
 password = 'admin_mysql'
 host = 'mysqldb.cahzfivbuo9y.us-east-2.rds.amazonaws.com'
 database = 'practica1'
+bucket = 'practica1-g18-imagenes'
 db = pymysql.connect(host=host, user=user, password=password, database=database)
+
+#S3
+client = boto3.client(
+    's3',
+    region_name=aws.s3_creds.region_name,
+    aws_access_key_id=aws.s3_creds.aws_access_key_id,
+    aws_secret_access_key=aws.s3_creds.aws_secret_access_key
+)
 
 
 @app.route('/api')
@@ -58,17 +67,11 @@ def signup():
             if(foto != "vacio"):
                 bytes = base64.b64decode(foto)
                 print(filename)
-                client = boto3.client(
-                    's3',
-                    region_name=aws.s3_creds.region_name,
-                    aws_access_key_id=aws.s3_creds.aws_access_key_id,
-                    aws_secret_access_key=aws.s3_creds.aws_secret_access_key
-                )
 
                 client.put_object(
                     ACL='public-read',
                     Body=bytes,
-                    Bucket= "practica1-g18-imagenes",
+                    Bucket= bucket,
                     Key=filename,
                     ContentType= "image"
                 )
@@ -91,11 +94,59 @@ def login():
         cursor = db.cursor()
         cursor.execute("Select * from users where usuario = %s and password = %s ;", (username, password))
         # cursor.execute("Select * from users;")
+        row_headers = [x[0] for x in cursor.description]
         fils = cursor.fetchall()
+        if(len(fils) < 1):
+            return jsonify({'result': "User not exist"})
+        
+        json_data = []
+        name = "..."
+        for result in fils:
+            name = result[4]
+            json_data.append(dict(zip(row_headers, result)))
+
+        try:
+            url = client.generate_presigned_url('get_object',
+                Params={
+                    'Bucket': bucket,
+                    'Key': name,
+                },                                  
+                ExpiresIn=3600
+            )
+
+            # return jsonify(url) # Si se desea obtener la url, mandar esto.
+            print(url)
+            print(name)
+            c = client.get_object(
+                Bucket= bucket,
+                Key=name
+            )
+            
+            contents = c['Body'].read()
+            resp = base64.b64encode(contents)
+            resp_finnal = resp.decode('utf-8')
+            data1 ={
+                'base64'
+            }
+            data2 ={
+                resp_finnal
+            }
+            data3 ={
+                'url'
+            }
+            data4 ={
+                url
+            }
+            json_data.append(dict(zip(data3, data4)))
+            json_data.append(dict(zip(data1, data2)))
+
+            # return jsonify(resp_finnal) # Si se desea obtener los bytes, mandar esto.
+        except:
+            status = 'ERROR! S3.'
         
         db.commit()
-        # db.close()
-        return jsonify({'result': fils[0]})
+        #session['logged_in'] = True
+        return jsonify(json_data)
 
     except:
         status = 'ERROR! This user is not registered.'
