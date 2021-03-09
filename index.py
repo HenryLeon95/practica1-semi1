@@ -82,48 +82,8 @@ def signup():
             status = 'ERROR! S3.'
     except:
         status = 'ERROR! This user is already registered.'
+        
     return jsonify({'result': status})
-
-    try:
-        print("Intentando insertar en S3")
-        if(foto != "vacio"):
-            print("1")
-            bytes = base64.b64decode(foto)
-            print("2")
-            filename = 'Fotos_Perfil/' + image + str(uuid.uuid1()) + "." + extension #uuid() genera un id unico para el archivo en s3
-            print(filename)
-            client = boto3.client(
-                's3',
-                region_name=aws.s3_creds.region_name,
-                aws_access_key_id=aws.s3_creds.aws_access_key_id,
-                aws_secret_access_key=aws.s3_creds.aws_secret_access_key
-            )
-            print("si paso el boto3")
-
-            client.put_object(
-                ACL='public-read',
-                Body=bytes,
-                Bucket= "practica1-g18-imagenes",
-                Key=filename,
-                ContentType= "image"
-            )
-        else:
-            filename = 'Fotos_Perfil/default.jpg'  
-
-        try:
-            print("Intentando insertar en base de datos")
-            # Falta Código para el inicio de sesion
-
-            cursor = db.cursor()
-            cursor.execute("Insert into users (usuario, nombre, password, foto) VALUES (%s, %s, %s, %s)", (username, name, password, filename))
-            db.commit()
-            status = 'User Created Syccessfully'
-        except:
-            status = 'ERROR! This user is already registered.'
-    except:
-        status = 'ERROR! S3.'
-    return jsonify({'result': status})
-
 
 
 @app.route("/tarea3-201503577", methods=["POST"])
