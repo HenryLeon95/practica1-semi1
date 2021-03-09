@@ -7,24 +7,19 @@ import boto3
 import db_creds
 import pymysql
 import creds
+import json
 
 
 app = Flask (__name__)
 db_config = db_creds.db_creds()
 aws = creds
 app.config['JSON_AS_ASCII'] = False
-# app.config['MYSQL_HOST'] = 'mysqldb.cahzfivbuo9y.us-east-2.rds.amazonaws.com'
-# app.config['MYSQL_USER'] = 'admin'
-# app.config['MYSQL_PASSWORD'] = 'admin_mysql'
-# app.config['MYSQL_DB'] = 'practica1'
-# mysql = MySQL()
-# mysql.init_app(app)
 
+#db config
 user = 'admin'
 password = 'admin_mysql'
 host = 'mysqldb.cahzfivbuo9y.us-east-2.rds.amazonaws.com'
 database = 'practica1'
-# db = pymysql.connect(db_config.MYSQL_HOST, db_config.MYSQL_USER, db_config.MYSQL_PASSWORD, db_config.MYSQL_DB)
 db = pymysql.connect(host=host, user=user, password=password, database=database)
 
 
@@ -83,6 +78,28 @@ def signup():
     except:
         status = 'ERROR! This user is already registered.'
         
+    return jsonify({'result': status})
+
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    request_data = request.get_json()
+    username = request_data['username']
+    password = request_data['password']
+    status = "..."
+    try:
+        cursor = db.cursor()
+        cursor.execute("Select * from users where usuario = %s and password = %s ;", (username, password))
+        # cursor.execute("Select * from users;")
+        fils = cursor.fetchall()
+        
+        db.commit()
+        # db.close()
+        return jsonify({'result': fils[0]})
+
+    except:
+        status = 'ERROR! This user is not registered.'
+
     return jsonify({'result': status})
 
 
