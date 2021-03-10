@@ -154,6 +154,58 @@ def login():
     return jsonify({'result': status})
 
 
+@app.route("/api/updateUser", methods=["POST"])
+def updateUser():
+    request_data = request.get_json()
+    id = request_data['id']
+    username = request_data['username']
+    name = request_data['name']
+    foto = request_data['foto']
+    extension = request_data['extension']
+    image = request_data['image']
+    image2 = request_data['image2'] #la que tiene actualmente
+    status = "..."
+
+    if(foto != "vacio" and ('Fotos_Perfil/' + image + extension) != image2):    #Se manda una nueva foto
+        print("Entro en 1")
+        filename = 'Fotos_Perfil/' + image + str(uuid.uuid1()) + "." + extension #uuid() genera un id unico para el archivo en s3
+    else:                                                   #Borra la foto actual de su perfil
+        print("Entro en 3")
+        filename = image2
+
+    try:
+        cursor = db.cursor()
+        # cursor.execute("Insert into users (usuario, nombre, password, foto) VALUES (%s, %s, %s, %s)", (username, name, password, filename))
+        print(username)
+        print(name)
+        print(filename)
+        print(id)
+        # cursor.execute("UPDATE users SET usuario = '%s', nombre = '%s', foto = '%s', WHERE id = %s ;", (username, name, filename, id))
+        cursor.execute("UPDATE users SET usuario = %s, nombre = %s, foto = %s WHERE id = %s;", (username, name, filename, str(id)))
+        db.commit()
+        print("Si actualizo")
+
+        if(foto != "vacio" and ('Fotos_Perfil/' + image + extension) != image2):
+            try:
+                bytes = base64.b64decode(foto)
+                print(filename)
+
+                client.put_object(
+                    ACL='public-read',
+                    Body=bytes,
+                    Bucket= bucket,
+                    Key=filename,
+                    ContentType= "image"
+                )
+                status = 'User Update Syccessfully'
+            except:
+                status = 'ERROR! S3.'
+    except:
+        status = 'ERROR! This user is not already registered.'
+        
+    return jsonify({'result': status})
+
+
 @app.route("/tarea3-201503577", methods=["POST"])
 def get_labels():
     request_data = request.get_json()
