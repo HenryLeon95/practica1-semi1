@@ -45,12 +45,19 @@ def signup():
     name = request_data['name']
     password = request_data['password']
     foto = request_data['foto']
-    extension = request_data['extension']
-    image = request_data['image']
+    extension = "jpg"
+    image = "..."
     status = "..."
+    flag = False
+    if("image" in request_data):
+        image = request_data['image']
+        flag = True
+    if("extension" in request_data):
+        extension = request_data['extension']
+        flag = True
 
 
-    if(foto != "vacio"):
+    if(flag):
         filename = 'Fotos_Perfil/' + image + str(uuid.uuid1()) + "." + extension #uuid() genera un id unico para el archivo en s3
     else:
         filename = 'Fotos_Perfil/default.jpg'  
@@ -64,7 +71,7 @@ def signup():
 
         try:
             print("Intentando insertar en S3")
-            if(foto != "vacio"):
+            if(flag):
                 bytes = base64.b64decode(foto)
                 print(filename)
 
@@ -86,6 +93,33 @@ def signup():
 
 @app.route("/api/login", methods=["POST"])
 def login():
+    request_data = request.get_json()
+    username = request_data['username']
+    password = request_data['password']
+    status = "..."
+    try:
+        cursor = db.cursor()
+        cursor.execute("Select * from users where usuario = %s and password = %s ;", (username, password))
+        # cursor.execute("Select * from users;")
+        row_headers = [x[0] for x in cursor.description]
+        fils = cursor.fetchall()
+        if(len(fils) < 1):
+            return jsonify({'result': "User not exist"})
+        
+        json_data = []
+        for result in fils:
+            json_data.append(dict(zip(row_headers, result)))
+        db.commit()
+        return jsonify(json_data)
+
+    except:
+        status = 'ERROR! This user is not registered.'
+
+    return jsonify({'result': status})
+
+
+@app.route("/api/login2", methods=["POST"])
+def login2():
     request_data = request.get_json()
     username = request_data['username']
     password = request_data['password']
@@ -154,38 +188,35 @@ def login():
     return jsonify({'result': status})
 
 
-@app.route("/api/updateUser", methods=["POST"])
-def updateUser():
+@app.route("/api/updateUser/<id>", methods=["PUT"])
+def updateUser(id):
     request_data = request.get_json()
-    id = request_data['id']
     username = request_data['username']
     name = request_data['name']
     foto = request_data['foto']
-    extension = request_data['extension']
-    image = request_data['image']
-    image2 = request_data['image2'] #la que tiene actualmente
+    extension = "jpg"
+    image = "..."
     status = "..."
+    flag = False
+    if("image" in request_data):
+        image = request_data['image']
+        flag = True
+    if("extension" in request_data):
+        extension = request_data['extension']
+        flag = True
 
-    if(foto != "vacio" and ('Fotos_Perfil/' + image + extension) != image2):    #Se manda una nueva foto
-        print("Entro en 1")
+    if(flag):    #Se manda una nueva foto
         filename = 'Fotos_Perfil/' + image + str(uuid.uuid1()) + "." + extension #uuid() genera un id unico para el archivo en s3
-    else:                                                   #Borra la foto actual de su perfil
-        print("Entro en 3")
-        filename = image2
+    else:
+        filename = foto
 
     try:
         cursor = db.cursor()
-        # cursor.execute("Insert into users (usuario, nombre, password, foto) VALUES (%s, %s, %s, %s)", (username, name, password, filename))
-        print(username)
-        print(name)
-        print(filename)
-        print(id)
-        # cursor.execute("UPDATE users SET usuario = '%s', nombre = '%s', foto = '%s', WHERE id = %s ;", (username, name, filename, id))
         cursor.execute("UPDATE users SET usuario = %s, nombre = %s, foto = %s WHERE id = %s;", (username, name, filename, str(id)))
         db.commit()
-        print("Si actualizo")
+        status = 'User Update Syccessfully'
 
-        if(foto != "vacio" and ('Fotos_Perfil/' + image + extension) != image2):
+        if(flag):
             try:
                 bytes = base64.b64decode(foto)
                 print(filename)
