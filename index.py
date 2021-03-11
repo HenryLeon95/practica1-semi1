@@ -32,13 +32,14 @@ client = boto3.client(
 )
 
 
-@app.route('/api')
+@app.route('/')
 def main():
     print("Hola")
     return "Hello World!"
 
 
-@app.route('/api/signup', methods=['POST'])
+# @app.route('/api/signup', methods=['POST'])
+@app.route('/saveImageInfoDDB', methods=['POST'])
 def signup():
     request_data = request.get_json()
     username = request_data['username']
@@ -188,7 +189,7 @@ def login2():
     return jsonify({'result': status})
 
 
-@app.route("/api/updateUser/<id>", methods=["PUT"])
+@app.route("/editUserInfo/<id>", methods=["PUT"])
 def updateUser(id):
     request_data = request.get_json()
     username = request_data['username']
@@ -264,6 +265,64 @@ def get_labels():
         print('{} | {}%'.format(label['Name'], label['Confidence']))
 
     return response
+
+@app.route('/albums', methods=['POST'])
+def addAlbum():
+    request_data = request.get_json()
+    name = request_data['nameAlbum']
+    idUser = request_data['id_']
+    status = "..."
+    print(name)
+    print(idUser)
+    try:
+        print("Intentando insertar en base de datos")
+
+        cursor = db.cursor()
+        cursor.execute("Insert into album (name, idUser) VALUES (%s, %s)", (name, str(idUser)))
+        db.commit()
+        status = 'Album Created Syccessfully'
+    except:
+        status = 'ERROR! This album is already registered.'
+        
+    return jsonify({'result': status})
+
+@app.route('/photoAlbums', methods=['POST'])
+def addphotoAlbum():
+    request_data = request.get_json()
+    idAlbum = request_data['id_']
+    foto = request_data['foto']
+    image = request_data['image']
+    extension = request_data['extension']
+    filename = 'Fotos_Publicadas/' + image + str(uuid.uuid1()) + "." + extension #uuid() genera un id unico para el archivo en s3
+    status = "..."
+    
+    try:
+        print("Intentando insertar en base de datos")
+
+        cursor = db.cursor()
+        cursor.execute("Insert into photo_album (photo, idAlbum) VALUES (%s, %s)", (filename, str(idAlbum)))
+        db.commit()
+
+        try:
+            bytes = base64.b64decode(foto)
+            print(filename)
+
+            client.put_object(
+                ACL='public-read',
+                Body=bytes,
+                Bucket= bucket,
+                Key=filename,
+                ContentType= "image"
+            )
+            status = 'User Update Syccessfully'
+        except:
+            status = 'ERROR! S3.'
+
+        status = 'Photo add to Album Syccessfully'
+    except:
+        status = 'ERROR! This album is already registered.'
+        
+    return jsonify({'result': status})
 
 
 if __name__ == "__main__":
